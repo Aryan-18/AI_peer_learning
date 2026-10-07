@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-base: #EDF6FF;
+    --color-text-base: #0A1128;
+    --color-card-bg: rgba(255, 255, 255, 0.98);
+    --color-border-base: #CCE6FF;
+  }
+
+  .dark {
+    --color-bg-base: #040711;
+    --color-text-base: #F8FAFC;
+    --color-card-bg: rgba(9, 15, 30, 0.85);
+    --color-border-base: rgba(0, 98, 255, 0.22);
+  }
+
+  body {
+    @apply font-apple antialiased transition-colors duration-300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Light Mode (Lighter version of reference blue with white cards) */
+  :not(.dark) body, body:not(.dark), html.light body {
+    background-color: #EDF6FF;
+    background-image: radial-gradient(ellipse 95% 65% at 50% -10%, #CCE6FF 0%, #DBEFFF 45%, #EDF6FF 100%);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: #0A1128;
+  }
+
+  /* Dark Mode (Darker shade of reference blue with black) */
+  .dark body, body.dark, html.dark body {
+    background-color: #040711;
+    background-image: radial-gradient(ellipse 85% 60% at 50% -10%, rgba(0, 98, 255, 0.32), rgba(4, 7, 17, 0.98));
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    color: #F8FAFC;
+  }
+}
+
+/* Glassmorphism Classes */
+.glass-nav {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.light .glass-nav, :not(.dark) .glass-nav {
+  background-color: rgba(255, 255, 255, 0.94);
+  border-bottom: 1px solid #CCE6FF;
+  box-shadow: 0 4px 20px rgba(0, 98, 255, 0.04);
+}
+
+.dark .glass-nav {
+  background-color: rgba(4, 7, 17, 0.8);
+  border-bottom: 1px solid rgba(0, 98, 255, 0.15);
+}
+
+/* Apple Card Styling */
+.apple-card {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:not(.dark) .apple-card {
+  background-color: #FFFFFF;
+  border: 1px solid #CCE6FF;
+  box-shadow: 0 10px 32px rgba(0, 98, 255, 0.07);
+}
+
+:not(.dark) .apple-card:hover {
+  border-color: #99D1FF;
+  box-shadow: 0 16px 45px rgba(0, 98, 255, 0.12);
+}
+
+.dark .apple-card {
+  background-color: rgba(9, 15, 30, 0.82);
+  border: 1px solid rgba(0, 98, 255, 0.2);
+  box-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.6);
+}
+
+.dark .apple-card:hover {
+  border-color: rgba(10, 122, 255, 0.45);
+  box-shadow: 0 15px 45px -5px rgba(0, 98, 255, 0.22);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:not(.dark) ::-webkit-scrollbar-thumb {
+  background: #99D1FF;
+  border-radius: 9999px;
+}
+
+:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #38A6FF;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(0, 98, 255, 0.3);
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 98, 255, 0.5);
+}
