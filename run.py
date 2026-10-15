@@ -29,8 +29,17 @@ def start_services():
     print("\n[1/2] Starting FastAPI Backend on http://127.0.0.1:8000 ...")
     backend_env = os.environ.copy()
     backend_env["PYTHONPATH"] = BACKEND_DIR
+    backend_env["VIRTUAL_ENV"] = os.path.join(BASE_DIR, ".venv")
+    backend_env["PATH"] = f"{os.path.join(BASE_DIR, '.venv', 'bin')}:{backend_env.get('PATH', '')}"
     backend_proc = subprocess.Popen(
-        [VENV_PYTHON, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"],
+        [
+            VENV_PYTHON, "-m", "uvicorn", "app.main:app",
+            "--host", "0.0.0.0", "--port", "8000",
+            "--reload",
+            "--reload-exclude", "*.db",
+            "--reload-exclude", "*.sqlite*",
+            "--reload-exclude", "sample_data/*"
+        ],
         cwd=BACKEND_DIR,
         env=backend_env
     )

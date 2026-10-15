@@ -35,6 +35,13 @@ class Settings:
     
     # SQLite default database path
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'peer_learning.db')}")
+    _raw_db = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'peer_learning.db')}")
+    if _raw_db.startswith("sqlite:///"):
+        _p = _raw_db[len("sqlite:///"):]
+        if not os.path.isabs(_p):
+            if _p.startswith("backend/") or _p.startswith("backend\\"):
+                _p = _p[8:]
+            _raw_db = f"sqlite:///{os.path.abspath(os.path.join(BASE_DIR, _p))}"
+    DATABASE_URL: str = _raw_db
 
 settings = Settings()
