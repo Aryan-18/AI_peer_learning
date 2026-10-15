@@ -80,6 +80,8 @@ export default function Login({ onSwitchToRegister }) {
           {/* Google Sign-In Option */}
           <div className="mb-4">
             <GoogleSignInButton
+              role={role}
+              onError={(msg) => setError(msg)}
               onClick={() => setIsGoogleModalOpen(true)}
               text="Sign in with PCCOE Google Account"
             />

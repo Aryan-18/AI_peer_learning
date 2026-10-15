@@ -3,6 +3,7 @@ import { GraduationCap, ShieldCheck, Lock, Mail, User, BookOpen, AlertCircle, Ar
 import { useAuth } from "../context/AuthContext";
 import GoogleSignInButton from "../components/GoogleSignInButton";
 import GoogleSignInModal from "../components/GoogleSignInModal";
+import FacultyCourseSelector from "../components/FacultyCourseSelector";
 
 export default function Register({ onSwitchToLogin }) {
   const { register } = useAuth();
@@ -10,6 +11,7 @@ export default function Register({ onSwitchToLogin }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [teachingCourses, setTeachingCourses] = useState([]);
   const [prn, setPrn] = useState("");
   const [department] = useState("Computer Science Engineering (Artificial Intelligence & Machine Learning)");
   const [year, setYear] = useState("Second Year (SY)");
@@ -46,6 +48,11 @@ export default function Register({ onSwitchToLogin }) {
       return;
     }
 
+    if (role === "teacher" && teachingCourses.length === 0) {
+      setError("Please select at least one course that you teach.");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -58,6 +65,7 @@ export default function Register({ onSwitchToLogin }) {
         year: role === "student" ? year : null,
         semester: role === "student" ? semester : null,
         scheme: role === "student" && year === "Final Year (B.Tech)" ? scheme : null,
+        teaching_courses: role === "teacher" ? teachingCourses : null,
       });
     } catch (err) {
       setError(err.message || "Failed to register institutional account.");
@@ -68,7 +76,7 @@ export default function Register({ onSwitchToLogin }) {
 
   return (
     <div className="min-h-[calc(100vh-6rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8 animate-fade-in">
-      <div className="w-full max-w-md">
+      <div className={`w-full ${role === "teacher" ? "max-w-lg" : "max-w-md"} transition-all duration-300`}>
         
         {/* Heading */}
         <div className="text-center mb-6">
@@ -115,6 +123,8 @@ export default function Register({ onSwitchToLogin }) {
           {/* Google Workspace Sign-Up Option */}
           <div className="mb-4">
             <GoogleSignInButton
+              role={role}
+              onError={(msg) => setError(msg)}
               onClick={() => setIsGoogleModalOpen(true)}
               text="Sign up with PCCOE Google Account"
             />
@@ -228,6 +238,16 @@ export default function Register({ onSwitchToLogin }) {
                 />
               </div>
             </div>
+
+            {/* Courses Taught if Faculty */}
+            {role === "teacher" && (
+              <div className="pt-1 animate-fade-in">
+                <FacultyCourseSelector
+                  selectedCourses={teachingCourses}
+                  onChange={setTeachingCourses}
+                />
+              </div>
+            )}
 
             {/* Year Studying if student */}
             {role === "student" && (

@@ -11,6 +11,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="student")  # "teacher" or "student"
+    teaching_courses = Column(String(2000), nullable=True, default=None)  # JSON-encoded list of courses
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships

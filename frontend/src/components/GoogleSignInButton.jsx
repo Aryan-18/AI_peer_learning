@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 
-export default function GoogleSignInButton({ onClick, role = "student", text = "Sign in with PCCOE Google Account" }) {
+export default function GoogleSignInButton({ onClick, onError, role = "student", text = "Sign in with PCCOE Google Account" }) {
   const { googleLogin } = useAuth();
   const googleBtnRef = useRef(null);
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -17,10 +17,16 @@ export default function GoogleSignInButton({ onClick, role = "student", text = "
             hosted_domain: "pccoepune.org",
             callback: async (response) => {
               if (response.credential) {
-                await googleLogin({
-                  credential: response.credential,
-                  role: role
-                });
+                try {
+                  await googleLogin({
+                    credential: response.credential,
+                    role: role
+                  });
+                } catch (err) {
+                  if (onError) {
+                    onError(err.message || "Google sign-in failed. Only verified @pccoepune.org accounts are allowed.");
+                  }
+                }
               }
             },
           });
@@ -50,7 +56,7 @@ export default function GoogleSignInButton({ onClick, role = "student", text = "
       }, 300);
       return () => clearInterval(interval);
     }
-  }, [clientId, role, googleLogin]);
+  }, [clientId, role, googleLogin, onError]);
 
   // When live Google Client ID is configured, render Google's official native GIS button
   if (clientId) {

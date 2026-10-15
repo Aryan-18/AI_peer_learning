@@ -46,6 +46,13 @@ def init_database():
             if "scheme" not in existing_sub_cols:
                 conn.exec_driver_sql("ALTER TABLE subjects ADD COLUMN scheme VARCHAR(50);")
 
+            # Check users columns
+            existing_user_cols = [
+                row[1] for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()
+            ]
+            if "teaching_courses" not in existing_user_cols:
+                conn.exec_driver_sql("ALTER TABLE users ADD COLUMN teaching_courses VARCHAR(2000);")
+
             conn.commit()
         except Exception as e:
             # Non-fatal if dialect is not sqlite or table doesn't exist yet

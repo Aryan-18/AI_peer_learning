@@ -1,6 +1,8 @@
 import httpx
 import secrets
 import json
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -12,6 +14,23 @@ from app.core.deps import get_current_user, validate_pccoe_domain
 from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+from typing import Optional, List, Any
+
+def parse_teaching_courses(val: Any) -> Optional[List[str]]:
+    if not val:
+        return None
+    if isinstance(val, list):
+        return [str(c).strip() for c in val if str(c).strip()]
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return [str(c).strip() for c in parsed if str(c).strip()]
+            return [str(parsed).strip()]
+        except Exception:
+            return [c.strip() for c in val.split(",") if c.strip()]
+    return None
 
 @router.post("/register", response_model=Token)
 def register_user(req: UserRegister, db: Session = Depends(get_db)):
@@ -38,11 +57,19 @@ def register_user(req: UserRegister, db: Session = Depends(get_db)):
                 detail=f"Student PRN '{req.prn}' is already registered."
             )
 
+    teaching_courses_json = None
+    parsed_courses = None
+    if req.role == "teacher" and req.teaching_courses:
+        parsed_courses = parse_teaching_courses(req.teaching_courses)
+        if parsed_courses:
+            teaching_courses_json = json.dumps(parsed_courses)
+
     new_user = User(
         email=clean_email,
         full_name=req.full_name.strip(),
         password_hash=hash_password(req.password),
-        role=req.role
+        role=req.role,
+        teaching_courses=teaching_courses_json
     )
     db.add(new_user)
     db.flush()
@@ -80,7 +107,8 @@ def register_user(req: UserRegister, db: Session = Depends(get_db)):
         user_id=new_user.id,
         email=new_user.email,
         full_name=new_user.full_name,
-        prn=assigned_prn
+        prn=assigned_prn,
+        teaching_courses=parsed_courses
     )
 
 @router.post("/login", response_model=Token)
@@ -117,7 +145,8 @@ def login_user(req: UserLogin, db: Session = Depends(get_db)):
         user_id=user.id,
         email=user.email,
         full_name=user.full_name,
-        prn=prn
+        prn=prn,
+        teaching_courses=parse_teaching_courses(user.teaching_courses)
     )
 
 @router.get("/me", response_model=UserResponse)
@@ -146,68 +175,74 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)):
         year=year,
         semester=sem,
         scheme=scheme,
-        selected_electives=electives
+        selected_electives=electives,
+        teaching_courses=parse_teaching_courses(current_user.teaching_courses)
     )
 
 @router.post("/google", response_model=Token)
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     """
     Authenticates or auto-registers a user via Google Workspace.
-    Strictly verifies Google ID Token or institutional email domain (@pccoepune.org).
+    Strictly verifies Google ID Token using Google's official token verification library,
+    validates the cryptographic signature, audience against GOOGLE_CLIENT_ID, expiry,
+    email_verified claim, and ensures the verified email belongs to @pccoepune.org.
+    Never trusts an email provided directly by the frontend.
     """
-    google_email = None
-    google_name = None
-
-    if req.credential:
-        # Cryptographically verify the Google ID token with Google's tokeninfo API
-        try:
-            resp = httpx.get(
-                f"https://oauth2.googleapis.com/tokeninfo?id_token={req.credential}",
-                timeout=6.0
-            )
-            if resp.status_code != 200:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Google verification failed: Invalid or expired ID token."
-                )
-            id_info = resp.json()
-
-            # Verify email verification status
-            if str(id_info.get("email_verified", "")).lower() != "true":
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Google account email is not verified."
-                )
-
-            google_email = id_info.get("email", "").strip().lower()
-            google_name = id_info.get("name") or google_email.split("@")[0].replace(".", " ").title()
-
-            # Verify audience if GOOGLE_CLIENT_ID is configured
-            if settings.GOOGLE_CLIENT_ID and id_info.get("aud") != settings.GOOGLE_CLIENT_ID:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Google OAuth Client ID mismatch."
-                )
-
-        except HTTPException:
-            raise
-        except Exception as err:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Google authentication service error: {str(err)}"
-            )
-    elif req.email:
-        # Development / Institutional Chooser mode
-        google_email = req.email.strip().lower()
-        google_name = req.full_name or google_email.split("@")[0].replace(".", " ").title()
-    else:
+    if not req.credential or not req.credential.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing Google credential or institutional email."
+            detail="Missing Google ID token credential."
+        )
+
+    # Cryptographically verify the Google ID token using Google's official library
+    try:
+        request = google_requests.Request()
+        audience = settings.GOOGLE_CLIENT_ID if settings.GOOGLE_CLIENT_ID else None
+        id_info = id_token.verify_oauth2_token(
+            req.credential.strip(),
+            request,
+            audience=audience
+        )
+    except ValueError as e:
+        # Raised on invalid signature, expired token, audience mismatch, issuer mismatch, etc.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google ID token verification failed: {str(e)}"
+        )
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google authentication service error: {str(err)}"
+        )
+
+    # Require email_verified === True
+    email_verified = id_info.get("email_verified")
+    if email_verified is not True and str(email_verified).lower() != "true":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Google account email is not verified."
+        )
+
+    # Extract verified email from Google ID token payload
+    verified_email = id_info.get("email")
+    if not verified_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google token payload does not contain a verified email address."
         )
 
     # Strictly validate institutional domain @pccoepune.org
-    clean_email = validate_pccoe_domain(google_email)
+    clean_email = validate_pccoe_domain(verified_email)
+
+    # Check hosted domain (hd) claim if provided by Google Workspace
+    hd = id_info.get("hd")
+    if hd and hd.strip().lower() != settings.ALLOWED_DOMAIN.lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Hosted domain mismatch: Account domain must be @{settings.ALLOWED_DOMAIN}."
+        )
+
+    google_name = id_info.get("name") or clean_email.split("@")[0].replace(".", " ").title()
 
     # Check if user already exists
     user = db.query(User).filter(User.email == clean_email).first()
@@ -220,11 +255,18 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
 
         # Generate a secure random password hash for OAuth SSO user
         sso_dummy_pwd = secrets.token_urlsafe(32)
+        teaching_courses_json = None
+        if user_role == "teacher" and req.teaching_courses:
+            parsed_courses = parse_teaching_courses(req.teaching_courses)
+            if parsed_courses:
+                teaching_courses_json = json.dumps(parsed_courses)
+
         user = User(
             email=clean_email,
             full_name=google_name.strip() if google_name else clean_email.split("@")[0].title(),
             password_hash=hash_password(sso_dummy_pwd),
-            role=user_role
+            role=user_role,
+            teaching_courses=teaching_courses_json
         )
         db.add(user)
         db.flush()
@@ -250,6 +292,12 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
             db.flush()
 
         db.commit()
+    else:
+        if user.role == "teacher" and req.teaching_courses and not user.teaching_courses:
+            parsed_courses = parse_teaching_courses(req.teaching_courses)
+            if parsed_courses:
+                user.teaching_courses = json.dumps(parsed_courses)
+                db.commit()
 
     prn = user.student_profile.prn if user.student_profile else None
 
@@ -268,5 +316,6 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         user_id=user.id,
         email=user.email,
         full_name=user.full_name,
-        prn=prn
+        prn=prn,
+        teaching_courses=parse_teaching_courses(user.teaching_courses)
     )

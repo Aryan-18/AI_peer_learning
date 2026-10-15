@@ -759,3 +759,134 @@ def get_all_curriculum_subjects() -> List[Dict[str, Any]]:
                     add_sub(s, "Final Year (B.Tech)", sem, scheme)
 
     return list(subjects_dict.values())
+
+
+def get_faculty_teaching_course_options() -> List[Dict[str, Any]]:
+    """
+    Returns curated course options formatted as 'Year/Course name'
+    (e.g., 'SY/Artificial Intelligence', 'TY/NLPLab', 'SY/Machine Learning').
+    """
+    year_prefixes = {
+        "Second Year (SY)": "SY",
+        "Third Year (TY)": "TY",
+        "Final Year (B.Tech)": "Final Year",
+    }
+
+    course_aliases = {
+        "Natural Language Processing Laboratory": "NLPLab",
+        "Natural Language Processing Lab": "NLPLab",
+        "Artificial Intelligence Lab": "Artificial Intelligence Lab",
+        "Data Structures Laboratory": "Data Structures Lab",
+        "Database Management Systems Laboratory": "DBMS Lab",
+        "Advanced Data Structures Laboratory": "Advanced Data Structures Lab",
+        "Cloud Computing Laboratory": "Cloud Computing Lab",
+        "Cyber Security & Digital Forensics Laboratory": "Cyber Security Lab",
+        "Blockchain Technology Laboratory": "Blockchain Lab",
+        "Quantum Computing Laboratory": "Quantum Computing Lab",
+        "Robotics & Intelligent Systems Laboratory": "Robotics Lab",
+        "Augmented & Virtual Reality Laboratory": "AR-VR Lab",
+        "Computer Vision & Deep Learning Lab": "Computer Vision & Deep Learning Lab",
+        "Soft Computing & Optimization Algorithms Laboratory": "Soft Computing Lab",
+        "Big Data Analytics Laboratory": "Big Data Analytics Lab",
+        "Generative AI & Large Language Models Laboratory": "Generative AI & LLMs Lab",
+        "Generative AI & Large Language Models": "Generative AI & LLMs",
+        "Edge AI Laboratory": "Edge AI Lab",
+        "Deep Reinforcement Learning Laboratory": "Deep Reinforcement Learning Lab",
+    }
+
+    results: List[Dict[str, Any]] = []
+    seen = set()
+
+    # Explicit popular shortcuts
+    priority_options = [
+        {"label": "SY/Artificial Intelligence", "year": "SY", "course_name": "Artificial Intelligence", "type": "Theory"},
+        {"label": "SY/Machine Learning", "year": "SY", "course_name": "Machine Learning", "type": "Theory"},
+        {"label": "SY/Data Structures & Algorithms", "year": "SY", "course_name": "Data Structures & Algorithms", "type": "Theory"},
+        {"label": "SY/Data Structures Lab", "year": "SY", "course_name": "Data Structures Laboratory", "type": "Lab"},
+        {"label": "SY/Database Management Systems", "year": "SY", "course_name": "Database Management Systems", "type": "Theory"},
+        {"label": "SY/DBMS Lab", "year": "SY", "course_name": "Database Management Systems Laboratory", "type": "Lab"},
+        {"label": "TY/Artificial Intelligence", "year": "TY", "course_name": "Artificial Intelligence", "type": "Theory"},
+        {"label": "TY/Artificial Intelligence Lab", "year": "TY", "course_name": "Artificial Intelligence Lab", "type": "Lab"},
+        {"label": "TY/NLPLab", "year": "TY", "course_name": "Natural Language Processing Laboratory", "type": "Lab"},
+        {"label": "TY/Natural Language Processing", "year": "TY", "course_name": "Natural Language Processing", "type": "Theory"},
+    ]
+    for opt in priority_options:
+        seen.add(opt["label"])
+        results.append({
+            "label": opt["label"],
+            "value": opt["label"],
+            "year": opt["year"],
+            "course_name": opt["course_name"],
+            "type": opt["type"],
+            "code": ""
+        })
+
+    # Iterate curriculum data
+    for yr_name, yr_data in CURRICULUM_DATA.items():
+        yr_prefix = year_prefixes.get(yr_name, "SY")
+        sems = yr_data.get("semesters") or {}
+        if not sems and "scheme_semesters" in yr_data:
+            for sc_name, sc_sems in yr_data["scheme_semesters"].items():
+                for sm_name, items in sc_sems.items():
+                    for item in items:
+                        cname = item["name"]
+                        if item.get("is_elective") and "options" in item:
+                            for sub_opt in item["options"]:
+                                friendly_name = course_aliases.get(sub_opt["name"], sub_opt["name"])
+                                lbl = f"{yr_prefix}/{friendly_name}"
+                                if lbl not in seen:
+                                    seen.add(lbl)
+                                    results.append({
+                                        "label": lbl,
+                                        "value": lbl,
+                                        "year": yr_prefix,
+                                        "course_name": sub_opt["name"],
+                                        "code": sub_opt.get("code", ""),
+                                        "type": item.get("subject_type", "Theory"),
+                                    })
+                        else:
+                            friendly_name = course_aliases.get(cname, cname)
+                            lbl = f"{yr_prefix}/{friendly_name}"
+                            if lbl not in seen:
+                                seen.add(lbl)
+                                results.append({
+                                    "label": lbl,
+                                    "value": lbl,
+                                    "year": yr_prefix,
+                                    "course_name": cname,
+                                    "code": item.get("code", ""),
+                                    "type": item.get("subject_type", "Theory"),
+                                })
+        else:
+            for sm_name, items in sems.items():
+                for item in items:
+                    cname = item["name"]
+                    if item.get("is_elective") and "options" in item:
+                        for sub_opt in item["options"]:
+                            friendly_name = course_aliases.get(sub_opt["name"], sub_opt["name"])
+                            lbl = f"{yr_prefix}/{friendly_name}"
+                            if lbl not in seen:
+                                seen.add(lbl)
+                                results.append({
+                                    "label": lbl,
+                                    "value": lbl,
+                                    "year": yr_prefix,
+                                    "course_name": sub_opt["name"],
+                                    "code": sub_opt.get("code", ""),
+                                    "type": item.get("subject_type", "Theory"),
+                                })
+                    else:
+                        friendly_name = course_aliases.get(cname, cname)
+                        lbl = f"{yr_prefix}/{friendly_name}"
+                        if lbl not in seen:
+                            seen.add(lbl)
+                            results.append({
+                                "label": lbl,
+                                "value": lbl,
+                                "year": yr_prefix,
+                                "course_name": cname,
+                                "code": item.get("code", ""),
+                                "type": item.get("subject_type", "Theory"),
+                            })
+
+    return results

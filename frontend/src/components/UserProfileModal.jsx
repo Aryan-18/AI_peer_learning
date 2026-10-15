@@ -142,6 +142,24 @@ export default function UserProfileModal({ isOpen, onClose }) {
               <span>{user.semester}</span>
             </div>
           )}
+
+          {isTeacher && user.teaching_courses && user.teaching_courses.length > 0 && (
+            <div className="mt-3 p-2.5 rounded-2xl bg-[#EDF6FF] dark:bg-[#0062FF]/10 border border-[#CCE6FF] dark:border-[#0062FF]/30 text-left">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#0062FF] dark:text-[#38A6FF] mb-1.5">
+                Assigned Teaching Courses
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {user.teaching_courses.map((c) => (
+                  <span
+                    key={c}
+                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-[#CCE6FF] dark:border-slate-700"
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Logout Option at the End inside Profile Option */}

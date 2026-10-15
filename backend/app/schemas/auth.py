@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, List
 from app.config import settings
 
 class UserRegister(BaseModel):
@@ -13,6 +13,7 @@ class UserRegister(BaseModel):
     semester: Optional[Union[str, int]] = "Semester III"
     scheme: Optional[str] = None
     selected_electives: Optional[Dict[str, Any]] = None
+    teaching_courses: Optional[Union[List[str], str]] = None
 
     @field_validator("email")
     @classmethod
@@ -56,6 +57,7 @@ class Token(BaseModel):
     email: str
     full_name: str
     prn: Optional[Union[str, int]] = None
+    teaching_courses: Optional[List[str]] = None
 
     @field_validator("prn", mode="before")
     @classmethod
@@ -75,6 +77,7 @@ class UserResponse(BaseModel):
     semester: Optional[Union[str, int]] = None
     scheme: Optional[str] = None
     selected_electives: Optional[Dict[str, Any]] = None
+    teaching_courses: Optional[List[str]] = None
 
     @field_validator("prn", "year", "semester", mode="before")
     @classmethod
@@ -87,9 +90,7 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class GoogleAuthRequest(BaseModel):
-    credential: Optional[str] = None
-    email: Optional[str] = None
-    full_name: Optional[str] = None
+    credential: str
     role: Optional[str] = "student"
     prn: Optional[Union[str, int]] = None
     department: Optional[str] = "Computer Science Engineering (Artificial Intelligence & Machine Learning)"
@@ -97,3 +98,12 @@ class GoogleAuthRequest(BaseModel):
     semester: Optional[Union[str, int]] = "Semester III"
     scheme: Optional[str] = None
     selected_electives: Optional[Dict[str, Any]] = None
+    teaching_courses: Optional[Union[List[str], str]] = None
+
+    @field_validator("credential")
+    @classmethod
+    def validate_credential(cls, v: str) -> str:
+        clean = (v or "").strip()
+        if not clean:
+            raise ValueError("Google ID token credential is required.")
+        return clean

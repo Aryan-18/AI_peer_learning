@@ -155,6 +155,22 @@ export default function TeacherDashboard() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Credit-aware data ingestion, institutional guardrail compliance, and Scikit-Learn peer pairing.
           </p>
+
+          {user?.teaching_courses && user.teaching_courses.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2.5 animate-fade-in">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1">
+                Instructing:
+              </span>
+              {user.teaching_courses.map((c) => (
+                <span
+                  key={c}
+                  className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#EDF6FF] dark:bg-blue-950/80 text-[#0062FF] dark:text-[#38A6FF] border border-[#CCE6FF] dark:border-blue-900 shadow-xs"
+                >
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Global Action Buttons */}

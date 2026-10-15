@@ -20,44 +20,54 @@ export async function apiRequest(endpoint, options = {}) {
       headers,
     });
   } catch (err) {
-    // If /api proxy failed or is not available, fallback to direct 127.0.0.1:8000
-    if (API_BASE_URL === "/api") {
-      try {
-        response = await fetch(`http://127.0.0.1:8000/api${endpoint}`, {
-          ...options,
-          headers,
-        });
-      } catch (fallbackErr) {
-        throw new Error(
-          "Backend server is not reachable. Please make sure the backend is running on http://127.0.0.1:8000 (python3 run.py)."
-        );
-      }
-    } else {
+    // If primary /api request fails, fallback to direct 127.0.0.1:8000/api
+    try {
+      response = await fetch(`http://127.0.0.1:8000/api${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (fallbackErr) {
       throw new Error(
-        "Backend server is not reachable. Please make sure the backend is running on http://127.0.0.1:8000 (python3 run.py)."
+        "Backend server is not reachable on port 8000. Please ensure the backend is running (run: python run.py)."
       );
     }
   }
 
-  const contentType = response.headers.get("content-type");
+  const contentType = response.headers.get("content-type") || "";
   let data;
-  if (contentType && contentType.includes("application/json")) {
-    data = await response.json();
-  } else if (contentType && (contentType.includes("sheet") || contentType.includes("csv") || contentType.includes("octet-stream"))) {
+  if (contentType.includes("application/json")) {
+    try {
+      data = await response.json();
+    } catch {
+      data = await response.text();
+    }
+  } else if (contentType.includes("sheet") || contentType.includes("csv") || contentType.includes("octet-stream")) {
     return response.blob();
   } else {
     data = await response.text();
   }
 
   if (!response.ok) {
-    let errorMessage = "An error occurred";
-    if (data && data.detail) {
+    let errorMessage = `Server error (${response.status})`;
+    if (data && typeof data === "object") {
       if (typeof data.detail === "string") {
         errorMessage = data.detail;
       } else if (Array.isArray(data.detail)) {
-        errorMessage = data.detail.map(d => d.msg || JSON.stringify(d)).join(", ");
+        errorMessage = data.detail.map(d => (typeof d === "string" ? d : d.msg || JSON.stringify(d))).join(", ");
+      } else if (typeof data.message === "string") {
+        errorMessage = data.message;
+      } else if (typeof data.error === "string") {
+        errorMessage = data.error;
+      }
+    } else if (typeof data === "string" && data.trim()) {
+      const stripped = data.replace(/<[^>]*>?/gm, "").trim();
+      if (stripped.includes("ECONNREFUSED") || response.status === 502 || response.status === 504) {
+        errorMessage = "Backend service is not reachable on port 8000. Please ensure the backend is running (.venv/bin/python run.py).";
+      } else {
+        errorMessage = stripped.length > 250 ? stripped.slice(0, 250) + "..." : stripped;
       }
     }
+    console.error("API request failed:", response.status, errorMessage, data);
     const error = new Error(errorMessage);
     error.status = response.status;
     error.data = data;
@@ -164,4 +174,5 @@ export const studentApi = {
 
 export const subjectApi = {
   getSubjects: () => apiRequest("/subjects"),
+  getFacultyCourseOptions: () => apiRequest("/subjects/faculty-options"),
 };
